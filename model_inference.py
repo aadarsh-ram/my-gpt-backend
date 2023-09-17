@@ -22,18 +22,18 @@ except:
     print ('Defaulting to CPU!')
 
 # Model initialzation
-MODEL_PATH = "./orca-mini-3b.q4_0.gguf"
+MODEL_PATH = "/home/selva/llm-sih/orca-mini-3b.q4_0.gguf"
 if cuda_available:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048, temperature=0.5)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048)
 else:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, max_tokens=2048, n_threads=8, temperature=0.5)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, max_tokens=2048, n_threads=8)
 
 PROMPT_TEMPLATE = """
 ### System: 
 You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
 
 ### User:
-Summarize the following text.
+Summarize the following text in your own words. Highlight the main contributions of the paper.
 {text}
 
 ### Response:
@@ -60,6 +60,6 @@ def summarize_pdf(pdf_path, mode=1):
 
 # Sample inference
 if __name__ == "__main__":
-    pdf_path = "./samples/tiny-paper-iclr.pdf"
+    pdf_path = "./samples/tiny-attention.pdf"
     res = summarize_pdf(pdf_path)
     print (res)
