@@ -41,6 +41,7 @@ Summarize the following text.
 {text}
 
 ### Response:
+Sure, here is a summary of the text:
 """
 
 prompt = PromptTemplate.from_template(PROMPT_TEMPLATE)
