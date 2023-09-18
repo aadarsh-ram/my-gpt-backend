@@ -7,7 +7,7 @@ Python backend for My-GPT.
 - Python 3.8+ and Pip 3
 - RabbitMQ
 - CUDA Toolkit and related drivers (if your system has a GPU)
-- [Orca-Mini-3B model file](https://huggingface.co/juanjgit/orca_mini_3B-GGUF/blob/main/orca-mini-3b.q4_0.gguf)
+- [Orca-Mini-3B model file](https://huggingface.co/TheBloke/orca_mini_3B-GGML/blob/main/orca-mini-3b.ggmlv3.q5_0.bin)
 
 ### Setup:
 ```
@@ -19,7 +19,8 @@ python -m venv venv
 
 chmod +x ./requirements-setup.sh
 ./requirements-setup.sh
-
-python3 model_inference.py
 ```
-Note: Download the model file and store it in the root folder.
+
+- Download the model file, convert it to GGUF format using [this script](https://github.com/ggerganov/llama.cpp/blob/master/convert-llama-ggml-to-gguf.py).
+- Update .env file with the path to the model file in the `MODEL_PATH` variable. Make any necessary changes for the RabbitMQ server.
+- Run the backend with `python3 app.py`

@@ -1,14 +1,17 @@
 import os
 import subprocess
+import multiprocessing
+from dotenv import load_dotenv
 
 from langchain.llms import LlamaCpp
 from langchain.chains.summarize import load_summarize_chain
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import TokenTextSplitter
 from langchain.docstore.document import Document
-from langchain.chains.llm import LLMChain
 
 from pdf_parser import pdf_to_ocr
+
+load_dotenv()
 
 # GPU Inference
 cuda_available = 0
@@ -22,22 +25,22 @@ except:
     print ('Defaulting to CPU!')
 
 # Model initialization
-MODEL_PATH = "./orca-mini-3b.q4_0.gguf"
+MODEL_PATH = os.getenv('MODEL_PATH')
 if cuda_available:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048, temperature=0.7)
+    # GPU Layers = 25 acceptable for 4GB VRAM
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048, temperature=0)
 else:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, max_tokens=2048, n_threads=8, temperature=0.7)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, max_tokens=2048, n_threads=multiprocessing.cpu_count(), temperature=0)
 
 PROMPT_TEMPLATE = """
 ### System: 
-You are an AI assistant that follows instruction extremely well. Help as much as you can.
+You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
 
 ### User:
-Summarize the following text in your own words. Highlight the main contributions of the paper.
+Summarize the following text.
 {text}
 
 ### Response:
-Sure, here it is:
 """
 
 prompt = PromptTemplate.from_template(PROMPT_TEMPLATE)
