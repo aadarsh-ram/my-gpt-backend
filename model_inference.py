@@ -21,16 +21,16 @@ try:
 except:
     print ('Defaulting to CPU!')
 
-# Model initialzation
-MODEL_PATH = "/home/selva/llm-sih/orca-mini-3b.q4_0.gguf"
+# Model initialization
+MODEL_PATH = "./orca-mini-3b.q4_0.gguf"
 if cuda_available:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048, temperature=0.7)
 else:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, max_tokens=2048, n_threads=8)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, max_tokens=2048, n_threads=8, temperature=0.7)
 
 PROMPT_TEMPLATE = """
 ### System: 
-You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
+You are an AI assistant that follows instruction extremely well. Help as much as you can.
 
 ### User:
 Summarize the following text in your own words. Highlight the main contributions of the paper.
@@ -42,9 +42,9 @@ Sure, here it is:
 
 prompt = PromptTemplate.from_template(PROMPT_TEMPLATE)
 
-def summarize_pdf(pdf_path, mode=1):
+def summarize_pdf(pdf_path):
     # Convert pdf to text
-    text = pdf_to_ocr(pdf_path, mode)
+    text = pdf_to_ocr(pdf_path)
     # Split text into chunks
     text_splitter = TokenTextSplitter()
     texts = text_splitter.split_text(text)

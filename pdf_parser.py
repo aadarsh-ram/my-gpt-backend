@@ -10,7 +10,7 @@ def column_cleaning(text):
     new_text = new_text.replace('= \n', '= ')
     return new_text
 
-def pdf_to_ocr(path, mode=1):
+def pdf_to_ocr(path):
     doc = fitz.open(path)
 
     all_tables_text = []
@@ -24,25 +24,18 @@ def pdf_to_ocr(path, mode=1):
             all_tables_text.append(table_text)
         
         # Single column research paper
-        if (mode == 1):
-        #     text = page.get_text(sort=True)
-        #     new_text = column_cleaning(text)
-        #     print ('b0x', text)
-        #     all_text.append(new_text)
-    
-        # # Multi column research paper
-        # elif (mode == 2):
-            bboxes = column_boxes(page, no_image_text=True)
-            for rect in bboxes:
-                text = page.get_text(clip=rect, sort=True)
-                new_text = column_cleaning(text)
-                all_text.append(new_text)
+        bboxes = column_boxes(page, no_image_text=True)
+        for rect in bboxes:
+            text = page.get_text(clip=rect, sort=True)
+            # Remove tables
+            for table_text in all_tables_text:
+                if (table_text in text):
+                    text = text.replace(table_text, '')
+            
+            new_text = column_cleaning(text)
+            all_text.append(new_text)
 
-    # Remove tables
     full_text = ''.join(all_text)
-    for table_text in all_tables_text:
-        if (table_text in full_text):
-            full_text = full_text.replace(table_text, '')
 
     # Remove references
     pos = re.findall('references', full_text, flags=re.IGNORECASE)
@@ -60,3 +53,8 @@ def pdf_to_ocr(path, mode=1):
 
     print (full_text.encode('ascii', errors='ignore').decode())
     return (full_text.encode('ascii', errors='ignore').decode())
+
+if __name__ == '__main__':
+    pdf_path = "./samples/tiny-attention.pdf"
+    res = pdf_to_ocr(pdf_path)
+    print (res)
