@@ -20,6 +20,7 @@ def main():
         print (f"Received message from client {body}")
         client_json = json.loads(body.decode())
         result_json = {}
+        result_json['type'] = client_json['type']
 
         if client_json['type'] == 'summary':
             result = summarize_pdf(client_json['content'])
