@@ -1,6 +1,8 @@
 import os
 import multiprocessing
 import torch
+import chromadb
+from chromadb.config import Settings
 from dotenv import load_dotenv
 
 from langchain.llms import LlamaCpp
@@ -9,6 +11,10 @@ from langchain.prompts import PromptTemplate
 from langchain.text_splitter import TokenTextSplitter
 from langchain.docstore.document import Document
 from langchain.chains import LLMChain
+from langchain.embeddings import GPT4AllEmbeddings
+from langchain.chains.question_answering import load_qa_chain
+from langchain.memory import ConversationBufferMemory
+from langchain.vectorstores import Chroma
 
 from pdf_parser import pdf_to_ocr
 
@@ -32,6 +38,15 @@ if cuda_available:
 else:
     llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_threads=multiprocessing.cpu_count(), temperature=0)
 
+# Embedding model initialization
+embeddings = GPT4AllEmbeddings()
+
+# Chroma DB
+persist_directory = os.getenv('PERSIST_DIRECTORY')
+CHROMA_SETTINGS = Settings(persist_directory=persist_directory, anonymized_telemetry=False)
+chroma_client = chromadb.PersistentClient(settings=CHROMA_SETTINGS, path=persist_directory)
+
+# Prompts
 SUMMARY_PROMPT_TEMPLATE = """
 ### System: 
 You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
@@ -55,8 +70,26 @@ Read the following text, and rewrite all sentences after correcting all the writ
 ### Response:
 """
 
+CHAT_PROMPT_TEMPLATE = """
+### System:
+You are an AI assistant that helps people find information.
+
+### User:
+This is your previous chat history, where "Human:" is the user's query and "AI:" is your response to the query:
+{chat_history}
+
+This is the information provided to you:
+{context}
+
+Use only the conversation history (if there was previous conversations made) and the information to answer the following query.
+{question}
+
+### Response:
+"""
+
 summarize_prompt = PromptTemplate.from_template(SUMMARY_PROMPT_TEMPLATE)
 grammar_prompt = PromptTemplate(template=GRAMMAR_PROMPT_TEMPLATE, input_variables=["text"])
+qa_prompt = PromptTemplate(template=CHAT_PROMPT_TEMPLATE, input_variables=["question", "chat_history", "context"])
 
 def summarize_pdf(pdf_path):
     # Convert pdf to text
@@ -84,6 +117,44 @@ def grammar_check(text):
     except Exception as e:
         return e
 
+def ingest_file(pdf_path):
+    # Convert pdf to text
+    try:
+        text = pdf_to_ocr(pdf_path)
+        text_splitter = TokenTextSplitter(chunk_size=200, chunk_overlap=0)
+        texts = text_splitter.split_text(text)
+        docs = [Document(page_content=t) for t in texts]
+        db = Chroma.from_documents(docs, embeddings, 
+                                   persist_directory=persist_directory, 
+                                   client=chroma_client,
+                                   client_settings=CHROMA_SETTINGS)
+        print ('File has been ingested!')
+        return "File has been uploaded!"
+    except Exception as e:
+        return e
+
+def chat_qa(query, chat_history):
+    # Use stored embeddings
+    db = Chroma(persist_directory=persist_directory, 
+                embedding_function=embeddings, 
+                client_settings=CHROMA_SETTINGS, 
+                client=chroma_client)
+    print (db.get())
+    # Initialize chat memory, uses chat state from frontend
+    memory = ConversationBufferMemory(memory_key="chat_history", input_key="question")
+    for prev_user_msg, prev_ai_msg in chat_history:
+        memory.chat_memory.add_user_message(prev_user_msg)
+        memory.chat_memory.add_ai_message(prev_ai_msg)
+    
+    qa = load_qa_chain(llm=llm, memory=memory, prompt=qa_prompt, verbose=True) # Initialize QA
+    docs = db.similarity_search(query, k=8) # Get relevant docs
+
+    result = qa({
+        "input_documents" : docs,
+        "question" : query
+    })
+
+    return result['output_text']
 
 # Sample inference
 if __name__ == "__main__":
