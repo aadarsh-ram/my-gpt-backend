@@ -142,7 +142,8 @@ def chat_qa(query, chat_history):
     print (db.get())
     # Initialize chat memory, uses chat state from frontend
     memory = ConversationBufferMemory(memory_key="chat_history", input_key="question")
-    for prev_user_msg, prev_ai_msg in chat_history:
+    for index in range(0, len(chat_history), 2):
+        prev_user_msg, prev_ai_msg = chat_history[index], chat_history[index+1]
         memory.chat_memory.add_user_message(prev_user_msg)
         memory.chat_memory.add_ai_message(prev_ai_msg)
     

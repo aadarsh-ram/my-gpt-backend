@@ -48,7 +48,7 @@ def chat_test():
         'type' : 'chat',
         'query' : 'Among those, how many were US citizens?',
         'chat_history' : [
-            ['How many captives had Hamas freed?', " According to the information provided, Hamas released four captives, including two US citizens, as a gesture of goodwill towards Israel\'s demand for a prisoner swap deal that includes the release of all Palestinian prisoners from Israeli jails in exchange for all hostages held in Gaza."]
+            'How many captives had Hamas freed?', " According to the information provided, Hamas released four captives, including two US citizens, as a gesture of goodwill towards Israel\'s demand for a prisoner swap deal that includes the release of all Palestinian prisoners from Israeli jails in exchange for all hostages held in Gaza."
         ]
     }
     channel.basic_publish(exchange='', routing_key='gpt-send', body=json.dumps(send_chat_json2))
