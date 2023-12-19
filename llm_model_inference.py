@@ -11,7 +11,7 @@ from langchain.prompts import PromptTemplate
 from langchain.text_splitter import TokenTextSplitter
 from langchain.docstore.document import Document
 from langchain.chains import LLMChain
-from langchain.embeddings import GPT4AllEmbeddings
+from langchain.embeddings import GPT4AllEmbeddings, HuggingFaceEmbeddings
 from langchain.chains.question_answering import load_qa_chain
 from langchain.memory import ConversationBufferMemory
 from langchain.vectorstores import Chroma
@@ -34,12 +34,19 @@ else:
 MODEL_PATH = os.getenv('MODEL_PATH')
 if cuda_available:
     # GPU Layers = 25 acceptable for 4GB VRAM
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048, temperature=0)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048, temperature=0, n_batch=512)
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={'device': 'cuda'},
+        encode_kwargs={'normalize_embeddings': False}
+    )
 else:
     llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_threads=multiprocessing.cpu_count(), temperature=0)
-
-# Embedding model initialization
-embeddings = GPT4AllEmbeddings()
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': False}
+    )
 
 # Chroma DB
 persist_directory = os.getenv('PERSIST_DIRECTORY')
@@ -154,6 +161,7 @@ def chat_qa(query, chat_history):
         "input_documents" : docs,
         "question" : query
     })
+    print (result, flush=True)
 
     return result['output_text']
 
