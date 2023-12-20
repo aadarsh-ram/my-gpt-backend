@@ -38,7 +38,7 @@ def pdf_to_ocr_fitz(pdf_path):
     doc = fitz.open(pdf_path)
     text = ''
     for page in doc:
-        text+= page.getText()
+        text+= page.get_text()
     return text
 
 if __name__ == '__main__':
