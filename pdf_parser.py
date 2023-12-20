@@ -34,6 +34,13 @@ def print_pages(pdf_file):
 def pdf_to_ocr(path):
     return print_pages(path)
 
+def pdf_to_ocr_fitz(pdf_path):
+    doc = fitz.open(pdf_path)
+    text = ''
+    for page in doc:
+        text+= page.getText()
+    return text
+
 if __name__ == '__main__':
     pdf_path = "./samples/tiny-attention.pdf"
     res = pdf_to_ocr(pdf_path)

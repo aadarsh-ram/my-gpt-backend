@@ -18,7 +18,7 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.memory import ConversationBufferMemory
 from langchain.vectorstores import Chroma
 
-from pdf_parser import pdf_to_ocr
+from pdf_parser import pdf_to_ocr, pdf_to_ocr_fitz
 
 load_dotenv()
 
@@ -140,9 +140,11 @@ def grammar_check(text, is_big_model):
 
 def ingest_file(pdf_path, is_big_model):
     # Convert pdf to text
-    text = pdf_to_ocr(pdf_path)
-    text = " ".join(text.split())
-    text = text.replace('\n', '')
+    text = pdf_to_ocr_fitz(pdf_path)
+    if (text == ''): # Fallback to tesseract
+        text = pdf_to_ocr(pdf_path)
+        text = " ".join(text.split())
+        text = text.replace('\n', '')
 
     if (is_big_model):
         response = requests.post(url=f"{os.getenv('BIG_MODEL_BASE_URL', '')}/ingest", data=json.dumps({"text": text}))
@@ -193,5 +195,5 @@ def chat_qa(query, chat_history, is_big_model):
 # Sample inference
 if __name__ == "__main__":
     pdf_path = "./samples/scanned.pdf"
-    res = summarize_pdf(pdf_path, True, 100)
+    res = summarize_pdf(pdf_path, False, 100)
     print (res)
