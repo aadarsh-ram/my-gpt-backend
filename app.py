@@ -33,24 +33,24 @@ def main():
         result_json['type'] = client_json['type']
 
         if client_json['type'] == 'summary':
-            result = summarize_pdf(client_json['content'])
+            result = summarize_pdf(client_json['content'], client_json.get('big_model', False), client_json.get('words', 50))
             result_json = check_errors(result, result_json)
             print ('[*] Sent summary!')
         
         elif client_json['type'] == 'grammar':
-            result = grammar_check(client_json['content'])
+            result = grammar_check(client_json['content'], client_json.get('big_model', False))
             result_json = check_errors(result, result_json)
             print ('[*] Sent corrected text!')
         
         elif client_json['type'] == 'upload':
-            result = ingest_file(client_json['content'])
+            result = ingest_file(client_json['content'], client_json.get('big_model', False))
             result_json = check_errors(result, result_json)
             print ('[*] Uploaded successfully!')
 
         elif client_json['type'] == 'chat':
             query = client_json['query']
             chat_history = client_json['chat_history']
-            result = chat_qa(query, chat_history)
+            result = chat_qa(query, chat_history, client_json.get('big_model', False))
             result_json = check_errors(result, result_json)
             print ('[*] Sent reply!')
         
