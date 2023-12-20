@@ -102,15 +102,17 @@ qa_prompt = PromptTemplate(template=CHAT_PROMPT_TEMPLATE, input_variables=["ques
 
 def summarize_pdf(pdf_path, is_big_model, no_of_words):
     # Convert pdf to text
-    text = pdf_to_ocr(pdf_path)
+    ocr_text = pdf_to_ocr(pdf_path)
+    ocr_text = " ".join(ocr_text.split())
+    ocr_text = ocr_text.replace('\n', '')
     result = None
-    if (is_big_model):
-        response = requests.post(url=f"{os.getenv('BIG_MODEL_BASE_URL', '')}/summary", data=json.dumps({"text": text, "words": no_of_words}))
+    if (is_big_model == True):
+        response = requests.post(url=f"{os.getenv('BIG_MODEL_BASE_URL', '')}/summary", data=json.dumps({"text": ocr_text, "words": no_of_words}))
         result = response.json()
     else:
         # Split text into chunks
-        text_splitter = TokenTextSplitter()
-        texts = text_splitter.split_text(text)
+        text_splitter = TokenTextSplitter(chunk_size = 1400)
+        texts = [text_splitter.split_text(ocr_text)[0]]
         docs = [Document(page_content=t) for t in texts]
         summary_chain = load_summarize_chain(llm, chain_type='stuff', prompt=summarize_prompt)
         # Run inference
@@ -139,6 +141,9 @@ def grammar_check(text, is_big_model):
 def ingest_file(pdf_path, is_big_model):
     # Convert pdf to text
     text = pdf_to_ocr(pdf_path)
+    text = " ".join(text.split())
+    text = text.replace('\n', '')
+
     if (is_big_model):
         response = requests.post(url=f"{os.getenv('BIG_MODEL_BASE_URL', '')}/ingest", data=json.dumps({"text": text}))
         result = response.json()
@@ -187,6 +192,6 @@ def chat_qa(query, chat_history, is_big_model):
 
 # Sample inference
 if __name__ == "__main__":
-    pdf_path = "./samples/tiny-attention.pdf"
-    res = summarize_pdf(pdf_path)
+    pdf_path = "./samples/scanned.pdf"
+    res = summarize_pdf(pdf_path, True, 100)
     print (res)
