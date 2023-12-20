@@ -102,9 +102,14 @@ qa_prompt = PromptTemplate(template=CHAT_PROMPT_TEMPLATE, input_variables=["ques
 
 def summarize_pdf(pdf_path, is_big_model, no_of_words):
     # Convert pdf to text
-    ocr_text = pdf_to_ocr(pdf_path)
-    ocr_text = " ".join(ocr_text.split())
-    ocr_text = ocr_text.replace('\n', '')
+    
+    ocr_text = pdf_to_ocr_fitz(pdf_path)
+    if (ocr_text == ''): # Fallback to tesseract
+        ocr_text = pdf_to_ocr(pdf_path)
+        ocr_text = " ".join(ocr_text.split())
+        ocr_text = ocr_text.replace('\n', '')
+    
+    
     result = None
     if (is_big_model == True):
         response = requests.post(url=f"{os.getenv('BIG_MODEL_BASE_URL', '')}/summary", data=json.dumps({"text": ocr_text, "words": no_of_words}))
