@@ -10,6 +10,13 @@ def column_cleaning(text):
     new_text = new_text.replace('= \n', '= ')
     return new_text
 
+def pdf_to_ocr_raw(path):
+    doc = fitz.open(path)
+    text = ''
+    for page in doc:
+        text += page.get_text()
+    return text
+
 def pdf_to_ocr(path):
     doc = fitz.open(path)
 

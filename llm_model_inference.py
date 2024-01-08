@@ -6,17 +6,16 @@ from chromadb.config import Settings
 from dotenv import load_dotenv
 
 from langchain.llms import LlamaCpp
-from langchain.chains.summarize import load_summarize_chain
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import TokenTextSplitter
 from langchain.docstore.document import Document
 from langchain.chains import LLMChain
-from langchain.embeddings import GPT4AllEmbeddings, HuggingFaceEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains.question_answering import load_qa_chain
 from langchain.memory import ConversationBufferMemory
 from langchain.vectorstores import Chroma
 
-from pdf_parser import pdf_to_ocr
+from pdf_parser import pdf_to_ocr, pdf_to_ocr_raw
 
 load_dotenv()
 
@@ -34,14 +33,14 @@ else:
 MODEL_PATH = os.getenv('MODEL_PATH')
 if cuda_available:
     # GPU Layers = 25 acceptable for 4GB VRAM
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_gpu_layers=25, max_tokens=2048, temperature=0, n_batch=512)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_gpu_layers=25, n_batch=512)
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={'device': 'cuda'},
         encode_kwargs={'normalize_embeddings': False}
     )
 else:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=2048, n_threads=multiprocessing.cpu_count(), temperature=0)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_threads=multiprocessing.cpu_count())
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={'device': 'cpu'},
@@ -49,92 +48,61 @@ else:
     )
 
 # Chroma DB
-persist_directory = os.getenv('PERSIST_DIRECTORY')
-CHROMA_SETTINGS = Settings(persist_directory=persist_directory, anonymized_telemetry=False)
-chroma_client = chromadb.PersistentClient(settings=CHROMA_SETTINGS, path=persist_directory)
+chroma_client = chromadb.Client()
 
 # Prompts
-SUMMARY_PROMPT_TEMPLATE = """
-### System: 
-You are an AI assistant. You will be given a task. You must generate a detailed and long answer.
-
-### User:
-Summarize the following text.
-{text}
-
-### Response:
-Sure, here is a summary of the text:
+SUMMARY_PROMPT_TEMPLATE = """[INST]You are My-GPT, a helpful assistant who does summarization of research papers and news articles accurately. You need to summarize the text delimited by triple backticks, without adding any information of your own. Always keep your responses brief.
+```{text}```[/INST]
 """
 
-GRAMMAR_PROMPT_TEMPLATE = """
-### System: 
-You are an AI assistant that follows instruction extremely well. Help as much as you can.
-
-### User:
-Read the following text, and rewrite all sentences after correcting all the writing mistakes:
-{text}
-
-### Response:
+GRAMMAR_PROMPT_TEMPLATE = """[INST]You are My-GPT, a helpful assistant who does grammar checks and reformatting of text. Make MINIMUM edits to rectify the grammar in the text. You are NOT allowed to change what the text conveys through your reformatting. Only return the corrected text.
+{text}[/INST]
 """
 
-CHAT_PROMPT_TEMPLATE = """
-### System:
-You are an AI assistant that helps people find information.
-
-### User:
-This is your previous chat history, where "Human:" is the user's query and "AI:" is your response to the query:
-{chat_history}
-
-This is the information provided to you:
+CHAT_PROMPT_TEMPLATE = """[INST]You are My-GPT, a helpful and friendly question-answering assistant who answers questions from context given to you. When any questions are asked to you from the context, respond accurately without adding any information of your own. When you don't find any answer from the data provided, ask for more content relevant to the user's question. You are also given your conversation history with the user. Use it to continue the conversation and respond to any greetings appropriately.
+Here is the context:
 {context}
 
-Use only the conversation history (if there was previous conversations made) and the information to answer the following query.
-{question}
+Conversation History:
+{chat_history}
 
-### Response:
+Human: {question}
+AI:
+[/INST]
 """
 
-summarize_prompt = PromptTemplate.from_template(SUMMARY_PROMPT_TEMPLATE)
+summarize_prompt = PromptTemplate(template=SUMMARY_PROMPT_TEMPLATE, input_variables=["text"])
 grammar_prompt = PromptTemplate(template=GRAMMAR_PROMPT_TEMPLATE, input_variables=["text"])
 qa_prompt = PromptTemplate(template=CHAT_PROMPT_TEMPLATE, input_variables=["question", "chat_history", "context"])
 
+def llm_chain_inference(prompt, text):
+    llm_chain = LLMChain(prompt=prompt, llm=llm)
+    result = llm_chain.run(text)
+    return result
+
 def summarize_pdf(pdf_path):
-    # Convert pdf to text
-    text = pdf_to_ocr(pdf_path)
-    # Split text into chunks
-    text_splitter = TokenTextSplitter()
-    texts = text_splitter.split_text(text)
-    docs = [Document(page_content=t) for t in texts]
-    summary_chain = load_summarize_chain(llm, chain_type='stuff', prompt=summarize_prompt)
-    # Run inference
     try:
-        result = summary_chain.run(docs)
+        text = pdf_to_ocr(pdf_path) # Convert pdf to text
+        return llm_chain_inference(prompt=summarize_prompt, text=text) # Run inference
     except Exception as e:
         return e
 
-    return result
-
 def grammar_check(text):
-    llm_chain = LLMChain(prompt=grammar_prompt, llm=llm)
-    # Run inference
     try:
-        result = llm_chain.run(text)
+        result = llm_chain_inference(prompt=grammar_prompt, text=text) # Run inference
         return result
-    
     except Exception as e:
         return e
 
 def ingest_file(pdf_path):
     # Convert pdf to text
     try:
-        text = pdf_to_ocr(pdf_path)
-        text_splitter = TokenTextSplitter(chunk_size=200, chunk_overlap=0)
+        text = pdf_to_ocr_raw(pdf_path)
+        text_splitter = TokenTextSplitter(chunk_size=200, chunk_overlap=20)
         texts = text_splitter.split_text(text)
+
         docs = [Document(page_content=t) for t in texts]
-        db = Chroma.from_documents(docs, embeddings, 
-                                   persist_directory=persist_directory, 
-                                   client=chroma_client,
-                                   client_settings=CHROMA_SETTINGS)
+        db = Chroma.from_documents(docs, embeddings, client=chroma_client)
         print ('File has been ingested!')
         return "File has been uploaded!"
     except Exception as e:
@@ -142,10 +110,7 @@ def ingest_file(pdf_path):
 
 def chat_qa(query, chat_history):
     # Use stored embeddings
-    db = Chroma(persist_directory=persist_directory, 
-                embedding_function=embeddings, 
-                client_settings=CHROMA_SETTINGS, 
-                client=chroma_client)
+    db = Chroma(embedding_function=embeddings, client=chroma_client)
     print (db.get())
     # Initialize chat memory, uses chat state from frontend
     memory = ConversationBufferMemory(memory_key="chat_history", input_key="question")
@@ -155,7 +120,7 @@ def chat_qa(query, chat_history):
         memory.chat_memory.add_ai_message(prev_ai_msg)
     
     qa = load_qa_chain(llm=llm, memory=memory, prompt=qa_prompt, verbose=True) # Initialize QA
-    docs = db.similarity_search(query, k=8) # Get relevant docs
+    docs = db.similarity_search(query, k=2) # Get relevant docs
 
     result = qa({
         "input_documents" : docs,
