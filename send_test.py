@@ -39,7 +39,7 @@ def upload_test(path):
 def chat_test():
     send_chat_json1 = {
         'type' : 'chat',
-        'query' : 'What is the date of birth of Sachin Tendulkar?',
+        'query' : 'How many captives had Hamas freed?',
         'chat_history' : []
     }
     channel.basic_publish(exchange='', routing_key='gpt-send', body=json.dumps(send_chat_json1))

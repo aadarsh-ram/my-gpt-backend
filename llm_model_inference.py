@@ -2,7 +2,6 @@ import os
 import multiprocessing
 import torch
 import chromadb
-from chromadb.config import Settings
 from dotenv import load_dotenv
 
 from langchain.llms import LlamaCpp
@@ -97,7 +96,7 @@ def grammar_check(text):
 def ingest_file(pdf_path):
     # Convert pdf to text
     try:
-        text = pdf_to_ocr_raw(pdf_path)
+        text = pdf_to_ocr_raw(pdf_path) # Prefered for chunking
         text_splitter = TokenTextSplitter(chunk_size=200, chunk_overlap=20)
         texts = text_splitter.split_text(text)
 

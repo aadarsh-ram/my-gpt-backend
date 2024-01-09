@@ -8,6 +8,7 @@ Python backend for My-GPT.
 - RabbitMQ
 - CUDA Toolkit and related drivers (if your system has a GPU)
 - [Orca-Mini-3B model file](https://huggingface.co/TheBloke/orca_mini_3B-GGML/blob/main/orca-mini-3b.ggmlv3.q5_0.bin)
+- [Mistral-7B model file](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF)
 
 ### Setup:
 ```
@@ -22,5 +23,6 @@ chmod +x ./requirements-setup.sh
 ```
 
 - Download the model file, convert it to GGUF format using [this script](https://github.com/ggerganov/llama.cpp/blob/master/convert-llama-ggml-to-gguf.py).
+- The conversion is not required for the Mistral model.
 - Update .env file with the path to the model file in the `MODEL_PATH` variable. Make any necessary changes for the RabbitMQ server.
 - Run the backend with `python3 app.py`
