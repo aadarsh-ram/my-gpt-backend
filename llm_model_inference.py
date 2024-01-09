@@ -32,14 +32,14 @@ else:
 MODEL_PATH = os.getenv('MODEL_PATH')
 if cuda_available:
     # GPU Layers = 25 acceptable for 4GB VRAM
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_gpu_layers=25, n_batch=512)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_gpu_layers=25, n_batch=512, max_tokens=32768)
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={'device': 'cuda'},
         encode_kwargs={'normalize_embeddings': False}
     )
 else:
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_threads=multiprocessing.cpu_count())
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_threads=multiprocessing.cpu_count(), max_tokens=32768)
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={'device': 'cpu'},
@@ -58,16 +58,14 @@ GRAMMAR_PROMPT_TEMPLATE = """[INST]You are My-GPT, a helpful assistant who does 
 {text}[/INST]
 """
 
-CHAT_PROMPT_TEMPLATE = """[INST]You are My-GPT, a helpful and friendly question-answering assistant who answers questions from context given to you. When any questions are asked to you from the context, respond accurately without adding any information of your own. When you don't find any answer from the data provided, ask for more content relevant to the user's question. You are also given your conversation history with the user. Use it to continue the conversation and respond to any greetings appropriately.
+CHAT_PROMPT_TEMPLATE = """[INST]You are My-GPT, a helpful and friendly question-answering assistant who answers questions from context given to you. When any questions are asked to you from the context, respond accurately without adding any information of your own. When you don't find any answer from the data provided, ask for more content relevant to the user's question. You are also given your previous conversation history with the user, where your responses are prefixed with the word "AI:" and the user's queries are prefixed with "Human:". Use it to continue the conversation and generate ONLY ONE response. Keep your responses crisp and clear.
 Here is the context:
 {context}
 
 Conversation History:
 {chat_history}
 
-Human: {question}
-AI:
-[/INST]
+Human: {question}[/INST]
 """
 
 summarize_prompt = PromptTemplate(template=SUMMARY_PROMPT_TEMPLATE, input_variables=["text"])
@@ -127,7 +125,7 @@ def chat_qa(query, chat_history):
     })
     print (result, flush=True)
 
-    return result['output_text']
+    return result['output_text'].split('AI:')[-1].strip()
 
 # Sample inference
 if __name__ == "__main__":
