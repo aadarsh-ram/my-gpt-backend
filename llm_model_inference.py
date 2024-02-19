@@ -24,6 +24,7 @@ if (torch.cuda.is_available()):
     print ('Nvidia GPU detected!')
     os.environ['LLAMA_CPP_LIB'] = os.getenv('LLAMA_CPP_LIB', 'usr/local/lib/libllama.so')
     os.environ['LLAMA_CUBLAS'] = os.getenv('LLAMA_CUBLAS', 'on')
+    os.environ['GGML_CUDA_NO_PINNED'] = '1' # Pinned memory warning fix
     cuda_available = 1
 else:
     print ('Defaulting to CPU!')
@@ -31,8 +32,8 @@ else:
 # Model initialization
 MODEL_PATH = os.getenv('MODEL_PATH')
 if cuda_available:
-    # GPU Layers = 25 acceptable for 4GB VRAM
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_gpu_layers=25, n_batch=512, max_tokens=32768)
+    # TODO: GPU Layers = 5 acceptable for 4GB VRAM?
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_gpu_layers=15, n_batch=512, max_tokens=32768)
     embeddings = HuggingFaceEmbeddings(
         model_name="BAAI/bge-base-en-v1.5",
         model_kwargs={'device': 'cuda'},
@@ -109,6 +110,7 @@ def chat_qa(query, chat_history):
     # Use stored embeddings
     db = Chroma(embedding_function=embeddings, client=chroma_client)
     print (db.get())
+
     # Initialize chat memory, uses chat state from frontend
     memory = ConversationBufferMemory(memory_key="chat_history", input_key="question")
     for index in range(0, len(chat_history), 2):
