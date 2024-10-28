@@ -33,7 +33,7 @@ else:
 MODEL_PATH = os.getenv('MODEL_PATH')
 if cuda_available:
     # TODO: GPU Layers = 5 acceptable for 4GB VRAM?
-    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_gpu_layers=15, n_batch=512, max_tokens=32768)
+    llm = LlamaCpp(model_path=MODEL_PATH, n_ctx=32768, n_gpu_layers=20, n_batch=512, max_tokens=32768)
     embeddings = HuggingFaceEmbeddings(
         model_name="BAAI/bge-base-en-v1.5",
         model_kwargs={'device': 'cuda'},
